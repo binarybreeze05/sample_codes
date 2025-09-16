@@ -1,0 +1,244 @@
+[
+  {
+    "name": "Location1",
+    "description": "Description1",
+    "clusters": [
+      {
+        "name": "Cluster1",
+        "env": "env1",
+        "description": "Description1",
+        "drCluster": "Cluster2",
+        "cpuUsagePct": 40,
+        "cpuCapacityGHz": 100,
+        "memUsagePctHA": 45,
+        "memCapacityTB": 5,
+        "storageCapacityTB": 50,
+        "storageUsagePct": 60,
+        "hddCount": 10,
+        "ssdCount": 5,
+        "hostCount": 2,
+        "vmCount": 30,
+        "hasFileServer": true,
+        "hasObjectsServer": false,
+        "nodes": [
+          {
+            "name": "Node1",
+            "hypervisor": "Hypervisor1",
+            "model": "Model1",
+            "cpuUsagePct": 40,
+            "cpuCapacityGHz": 50,
+            "memUsagePctHA": 46,
+            "memCapacityTB": 2,
+            "storageCapacityTB": 20,
+            "hddCount": 4,
+            "ssdCount": 2,
+            "vmCount": 15
+          },
+          {
+            "name": "Node2",
+            "hypervisor": "Hypervisor2",
+            "model": "Model2",
+            "cpuUsagePct": 42,
+            "cpuCapacityGHz": 50,
+            "memUsagePctHA": 47,
+            "memCapacityTB": 2,
+            "storageCapacityTB": 20,
+            "hddCount": 4,
+            "ssdCount": 2,
+            "vmCount": 15
+          }
+        ]
+      },
+      {
+        "name": "Cluster2",
+        "env": "env2",
+        "description": "Description2",
+        "drCluster": "Cluster3",
+        "cpuUsagePct": 48,
+        "cpuCapacityGHz": 120,
+        "memUsagePctHA": 50,
+        "memCapacityTB": 6,
+        "storageCapacityTB": 60,
+        "storageUsagePct": 55,
+        "hddCount": 12,
+        "ssdCount": 6,
+        "hostCount": 2,
+        "vmCount": 32,
+        "hasFileServer": false,
+        "hasObjectsServer": true,
+        "nodes": [
+          {
+            "name": "Node3",
+            "hypervisor": "Hypervisor1",
+            "model": "Model1",
+            "cpuUsagePct": 45,
+            "cpuCapacityGHz": 60,
+            "memUsagePctHA": 48,
+            "memCapacityTB": 2,
+            "storageCapacityTB": 22,
+            "hddCount": 5,
+            "ssdCount": 2,
+            "vmCount": 16
+          },
+          {
+            "name": "Node4",
+            "hypervisor": "Hypervisor2",
+            "model": "Model2",
+            "cpuUsagePct": 47,
+            "cpuCapacityGHz": 60,
+            "memUsagePctHA": 49,
+            "memCapacityTB": 2,
+            "storageCapacityTB": 22,
+            "hddCount": 5,
+            "ssdCount": 2,
+            "vmCount": 16
+          }
+        ]
+      },
+      {
+        "name": "Cluster3",
+        "env": "env3",
+        "description": "Description3",
+        "drCluster": "Cluster1",
+        "cpuUsagePct": 35,
+        "cpuCapacityGHz": 90,
+        "memUsagePctHA": 40,
+        "memCapacityTB": 4,
+        "storageCapacityTB": 40,
+        "storageUsagePct": 50,
+        "hddCount": 8,
+        "ssdCount": 4,
+        "hostCount": 2,
+        "vmCount": 28,
+        "hasFileServer": true,
+        "hasObjectsServer": true,
+        "nodes": [
+          {
+            "name": "Node5",
+            "hypervisor": "Hypervisor1",
+            "model": "Model1",
+            "cpuUsagePct": 34,
+            "cpuCapacityGHz": 45,
+            "memUsagePctHA": 41,
+            "memCapacityTB": 1.5,
+            "storageCapacityTB": 18,
+            "hddCount": 4,
+            "ssdCount": 2,
+            "vmCount": 14
+          },
+          {
+            "name": "Node6",
+            "hypervisor": "Hypervisor2",
+            "model": "Model2",
+            "cpuUsagePct": 36,
+            "cpuCapacityGHz": 45,
+            "memUsagePctHA": 42,
+            "memCapacityTB": 1.5,
+            "storageCapacityTB": 18,
+            "hddCount": 4,
+            "ssdCount": 2,
+            "vmCount": 14
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Location2",
+    "description": "Description2",
+    "clusters": [
+      {
+        "name": "Cluster4",
+        "env": "env4",
+        "description": "Description4",
+        "drCluster": "Cluster5",
+        "cpuUsagePct": 52,
+        "cpuCapacityGHz": 130,
+        "memUsagePctHA": 55,
+        "memCapacityTB": 7,
+        "storageCapacityTB": 70,
+        "storageUsagePct": 62,
+        "hddCount": 14,
+        "ssdCount": 7,
+        "hostCount": 3,
+        "vmCount": 34,
+        "hasFileServer": true,
+        "hasObjectsServer": false,
+        "nodes": [
+          {
+            "name": "Node7",
+            "hypervisor": "Hypervisor1",
+            "model": "Model1",
+            "cpuUsagePct": 50,
+            "cpuCapacityGHz": 65,
+            "memUsagePctHA": 53,
+            "memCapacityTB": 2,
+            "storageCapacityTB": 24,
+            "hddCount": 5,
+            "ssdCount": 2,
+            "vmCount": 17
+          },
+          {
+            "name": "Node8",
+            "hypervisor": "Hypervisor2",
+            "model": "Model2",
+            "cpuUsagePct": 51,
+            "cpuCapacityGHz": 65,
+            "memUsagePctHA": 54,
+            "memCapacityTB": 2,
+            "storageCapacityTB": 24,
+            "hddCount": 5,
+            "ssdCount": 2,
+            "vmCount": 17
+          }
+        ]
+      },
+      {
+        "name": "Cluster5",
+        "env": "env5",
+        "description": "Description5",
+        "drCluster": "Cluster4",
+        "cpuUsagePct": 38,
+        "cpuCapacityGHz": 95,
+        "memUsagePctHA": 42,
+        "memCapacityTB": 4,
+        "storageCapacityTB": 45,
+        "storageUsagePct": 48,
+        "hddCount": 9,
+        "ssdCount": 4,
+        "hostCount": 2,
+        "vmCount": 26,
+        "hasFileServer": false,
+        "hasObjectsServer": true,
+        "nodes": [
+          {
+            "name": "Node9",
+            "hypervisor": "Hypervisor1",
+            "model": "Model1",
+            "cpuUsagePct": 37,
+            "cpuCapacityGHz": 48,
+            "memUsagePctHA": 43,
+            "memCapacityTB": 1.5,
+            "storageCapacityTB": 16,
+            "hddCount": 4,
+            "ssdCount": 2,
+            "vmCount": 13
+          },
+          {
+            "name": "Node10",
+            "hypervisor": "Hypervisor2",
+            "model": "Model2",
+            "cpuUsagePct": 39,
+            "cpuCapacityGHz": 48,
+            "memUsagePctHA": 44,
+            "memCapacityTB": 1.5,
+            "storageCapacityTB": 16,
+            "hddCount": 4,
+            "ssdCount": 2,
+            "vmCount": 13
+          }
+        ]
+      }
+    ]
+  }
+]

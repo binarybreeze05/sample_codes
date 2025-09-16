@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nutanix HCI Dashboard</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #0a0a0a;
+      --muted: #6b7280; /* neutral-500 */
+      --muted-600: #4b5563;
+      --muted-700: #374151;
+      --border: #e5e7eb; /* neutral-200 */
+      --alt: #f5f5f5; /* neutral-100/50 */
+      --accent: #0a0a0a;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --shadow: 0 1px 2px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.06);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .container { max-width: 1360px; margin: 0 auto; padding: 24px; }
+    /* Header */
+    .header { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px); background: rgba(255,255,255,0.9); border-bottom: 1px solid var(--border); }
+    .header-inner { max-width: 1360px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand .logo {
+      width:32px;
+      height:32px;
+      border-radius: 12px;
+      background: url('logo.png') center/contain no-repeat;
+    }
+    .brand h1 { font-size: 18px; margin:0; font-weight: 600; letter-spacing: -0.01em; }
+
+    .tabs { display:flex; gap:6px; background: var(--alt); padding:4px; border-radius: 999px; }
+    .tab { padding:8px 14px; border-radius:999px; border:1px solid transparent; background: transparent; cursor: pointer; font-size: 13px; color: var(--muted-700); }
+    .tab.active { background:#fff; box-shadow: var(--shadow); color: var(--text); }
+
+    /* Section titles */
+    h2.title { font-size: 20px; margin: 0 0 12px; font-weight: 600; letter-spacing: -0.01em; }
+
+    /* Inputs */
+    .filters { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 900px) { .filters { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 560px) { .filters { grid-template-columns: 1fr; } }
+    .field label { display:block; font-size:11px; color: var(--muted); margin-bottom:6px; }
+    .input, select { width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 12px; padding: 0 10px; background: #fff; outline: none; }
+    .input:focus, select:focus { box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    .bar { display:flex; align-items:center; gap:10px; margin-top: 10px; }
+    .button { height: 36px; padding: 0 12px; border:1px solid var(--border); border-radius: 12px; background:#fff; cursor:pointer; }
+    .button:disabled { opacity: .5; cursor: default; }
+
+    /* Table */
+    .card { border:1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #f7f7f7; color: var(--muted-700); }
+    th, td { text-align: left; padding: 10px 12px; }
+    tbody tr { border-top: 1px solid #f1f1f1; }
+    tbody tr:hover { background: #fafafa; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th .arrow { font-size: 10px; margin-left: 4px; }
+
+    .pagination { display:flex; align-items:center; justify-content: space-between; margin-top: 12px; font-size: 13px; }
+
+    /* Cards grid */
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    @media (min-width: 1200px) { .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    .cluster-card { text-align:left; border:1px solid var(--border); border-radius: 12px; padding:12px; background:#fff; transition: box-shadow .2s ease, transform .02s ease; cursor: pointer; }
+    .cluster-card:hover { box-shadow: var(--shadow); }
+    .row { display:flex; align-items:center; justify-content: space-between; gap: 10px; }
+    .env { font-size: 12px; color: var(--muted); }
+    .name { font-weight: 600; }
+    .badges { display:flex; gap:8px; flex-wrap: wrap; }
+    .badge { display:inline-flex; align-items:center; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--muted-700); background: #fafafa; }
+    .badge.solid { background:#fff; color: var(--text); border-color: var(--text); }
+    .desc { margin: 8px 0 12px; color: var(--muted-700); font-size: 13px; }
+    .metrics { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    .metric { border:1px solid var(--border); border-radius: 12px; padding:10px; }
+    .metric .label { font-size: 11px; color: var(--muted); }
+    .metric .value { margin-top: 2px; font-weight: 600; font-size: 13px; }
+    .muted { color: var(--muted); font-size: 12px; }
+
+    /* Progress */
+    .progress { width: 100%; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress > div { height: 100%; border-radius: 999px; background: var(--accent); }
+    .progress.warn > div { background: var(--accent-amber); }
+    .progress.danger > div { background: var(--accent-red); }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; z-index: 20; display:none; align-items: flex-end; justify-content: center; }
+    @media (min-width: 640px) { .modal { align-items: center; } }
+    .modal.active { display:flex; }
+    .backdrop { position:absolute; inset:0; background: rgba(0,0,0,0.2); }
+    .dialog { position: relative; width: min(980px, 96vw); max-height: 88vh; overflow:auto; background:#fff; border-radius: 22px; padding: 20px; box-shadow: var(--shadow); }
+    .dialog h3 { margin: 4px 0 6px; font-size: 18px; }
+
+    .note { border:1px solid var(--border); background:#fafafa; padding: 12px 14px; border-radius: var(--radius); color: var(--muted-700); font-size: 13px; margin-top: 18px; }
+    .section { margin: 28px 0; }
+
+    /* Hide/show pages */
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <h1>Nutanix HCI Dashboard</h1>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-page="vms">VMs</button>
+        <button class="tab" data-page="locations">Clusters</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- PAGE: VMs -->
+    <section id="page-vms">
+      <div class="filters">
+        <div class="field">
+          <label>VM Name</label>
+          <input id="f-name" class="input" type="text" placeholder="Search by name…" />
+        </div>
+        <div class="field">
+          <label>Major Type</label>
+          <input id="f-major" class="input" type="text" placeholder="Search major type…" />
+        </div>
+        <div class="field">
+          <label>Minor Type</label>
+          <input id="f-minor" class="input" type="text" placeholder="Search minor type…" />
+        </div>
+        <div class="field">
+          <label>Platform</label>
+          <input id="f-platform" class="input" type="text" placeholder="Search platform…" />
+        </div>
+        <div class="field">
+          <label>Platform Infrastructure Lead</label>
+          <input id="f-lead" class="input" type="text" placeholder="Search lead…" />
+        </div>
+        <div class="field">
+          <label>Supporting Team</label>
+          <input id="f-team" class="input" type="text" placeholder="Search team…" />
+        </div>
+        <div class="field">
+          <label>Host</label>
+          <input id="f-host" class="input" type="text" placeholder="Search host…" />
+        </div>
+        <div class="field">
+          <label>Cluster</label>
+          <input id="f-cluster" class="input" type="text" placeholder="Search cluster…" />
+        </div>
+      </div>
+      <div class="bar">
+        <div class="muted">Showing <span id="count"></span> of <span id="total"></span> VMs</div>
+        <div style="margin-left:auto"></div>
+        <button id="clearFilters" class="button">Clear all filters</button>
+      </div>
+
+      <div class="card section">
+        <table id="vm-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-key="name">VM Name <span class="arrow"></span></th>
+              <th class="sortable" data-key="majorType">Major Type <span class="arrow"></span></th>
+              <th class="sortable" data-key="minorType">Minor Type <span class="arrow"></span></th>
+              <th class="sortable" data-key="platform">Platform <span class="arrow"></span></th>
+              <th class="sortable" data-key="lead">Platform Infrastructure Lead <span class="arrow"></span></th>
+              <th class="sortable" data-key="team">Supporting Team <span class="arrow"></span></th>
+              <th class="sortable" data-key="host">Host <span class="arrow"></span></th>
+              <th class="sortable" data-key="cluster">Cluster <span class="arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <div>Page <strong id="pageNum">1</strong> of <span id="pageTotal">1</span></div>
+        <div>
+          <button id="prev" class="button">Previous</button>
+          <button id="next" class="button">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: Locations & Clusters -->
+    <section id="page-locations" class="hidden">
+      <h2 class="title">Clusters</h2>
+      <div id="locations"></div>
+
+      <div class="note">
+        <strong>Note ·</strong> Our infrastructure is based on hyperconverged infrastructure (HCI), delivered through Nutanix. In each cluster, HCI pools all the storage across the nodes into one big shared pool at the cluster level. So instead of worrying about which server has which disk, the system treats it like one unified storage resource. If you add more nodes, both storage and compute grow automatically.
+      </div>
+    </section>
+  </main>
+
+  <!-- Cluster Modal -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="backdrop" data-close></div>
+    <div class="dialog">
+      <div class="row">
+        <div>
+          <div class="env" id="modal-location"></div>
+          <h3 id="modal-title"></h3>
+          <div class="muted" id="modal-desc"></div>
+        </div>
+        <button class="button" data-close>✕</button>
+      </div>
+
+      <div class="metrics section" id="modal-metrics"></div>
+
+      <div class="section">
+        <div class="row" style="margin-bottom:6px;">
+          <h3 class="title" style="margin:0;">Nodes</h3>
+          <div class="muted" id="node-count"></div>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Hypervisor</th>
+                <th>Model</th>
+                <th>CPU Usage</th>
+                <th>CPU Capacity</th>
+                <th>Memory Usage (inc. HA)</th>
+                <th>Memory Capacity</th>
+                <th>Storage (TB)</th>
+                <th>HDD</th>
+                <th>SSD</th>
+                <th>VMs</th>
+              </tr>
+            </thead>
+            <tbody id="nodes-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/csv" id="vm-data">
+name,majorType,minorType,platform,lead,team,host,cluster
+Atlas-Core-Node01-VM0001,App,API,SAP,A. Lee,Platform,ATLAS-CORE-NODE-01,Atlas-Core-CLUSTER
+Zephyr-Edge-Node02-VM0002,DB,Web,SharePoint,M. Patel,Apps,ZEPHYR-EDGE-NODE-02,Zephyr-Edge-CLUSTER
+Helios-Analytics-Node03-VM0003,Infra,Batch,Kubernetes,S. Chen,Data,HELIOS-ANALYTICS-NODE-03,Helios-Analytics-CLUSTER
+Orion-Services-Node04-VM0004,Integration,MSSQL,Windows,J. Alvarez,Network,ORION-SERVICES-NODE-04,Orion-Services-CLUSTER
+Nimbus-Edge-Node05-VM0005,App,Oracle,RHEL,T. Brown,Security,NIMBUS-EDGE-NODE-05,Nimbus-Edge-CLUSTER
+Quasar-Compute-Node06-VM0006,DB,ETL,Elastic,K. Singh,Operations,QUASAR-COMPUTE-NODE-06,Quasar-Compute-CLUSTER
+Solaris-Data-Node07-VM0007,Infra,Kafka,Nginx,R. Watson,Compliance,SOLARIS-DATA-NODE-07,Solaris-Data-CLUSTER
+Luna-Transit-Node08-VM0008,Integration,WindowsSvc,RabbitMQ,L. Nguyen,Automation,LUNA-TRANSIT-NODE-08,Luna-Transit-CLUSTER
+Apex-Gateway-Node09-VM0009,App,LinuxSvc,Postgres,A. Lee,Platform,APEX-GATEWAY-NODE-09,Apex-Gateway-CLUSTER
+Vertex-Core-Node10-VM0010,DB,Analytics,MongoDB,M. Patel,Apps,VERTEX-CORE-NODE-10,Vertex-Core-CLUSTER
+Nova-Insights-Node11-VM0011,Infra,API,SAP,S. Chen,Data,NOVA-INSIGHTS-NODE-11,Nova-Insights-CLUSTER
+Echo-Relay-Node12-VM0012,Integration,Web,SharePoint,J. Alvarez,Network,ECHO-RELAY-NODE-12,Echo-Relay-CLUSTER
+Titan-Grid-Node01-VM0013,App,Batch,Kubernetes,T. Brown,Security,TITAN-GRID-NODE-01,Titan-Grid-CLUSTER
+Pulse-Stream-Node02-VM0014,DB,MSSQL,Windows,K. Singh,Operations,PULSE-STREAM-NODE-02,Pulse-Stream-CLUSTER
+Aurora-Processing-Node03-VM0015,Infra,Oracle,RHEL,R. Watson,Compliance,AURORA-PROCESSING-NODE-03,Aurora-Processing-CLUSTER
+Cypher-Labs-Node04-VM0016,Integration,ETL,Elastic,L. Nguyen,Automation,CYPHER-LABS-NODE-04,Cypher-Labs-CLUSTER
+Quantum-Fabric-Node05-VM0017,App,Kafka,Nginx,A. Lee,Platform,QUANTUM-FABRIC-NODE-05,Quantum-Fabric-CLUSTER
+Zenith-Core-Node06-VM0018,DB,WindowsSvc,RabbitMQ,M. Patel,Apps,ZENITH-CORE-NODE-06,Zenith-Core-CLUSTER
+Meteor-Ridge-Node07-VM0019,Infra,LinuxSvc,Postgres,S. Chen,Data,METEOR-RIDGE-NODE-07,Meteor-Ridge-CLUSTER
+Nimbus-HQ-Node08-VM0020,Integration,Analytics,MongoDB,J. Alvarez,Network,NIMBUS-HQ-NODE-08,Nimbus-HQ-CLUSTER
+Atlas-Core-Node09-VM0021,App,API,SAP,T. Brown,Security,ATLAS-CORE-NODE-09,Atlas-Core-CLUSTER
+Zephyr-Edge-Node10-VM0022,DB,Web,SharePoint,K. Singh,Operations,ZEPHYR-EDGE-NODE-10,Zephyr-Edge-CLUSTER
+Helios-Analytics-Node11-VM0023,Infra,Batch,Kubernetes,R. Watson,Compliance,HELIOS-ANALYTICS-NODE-11,Helios-Analytics-CLUSTER
+Orion-Services-Node12-VM0024,Integration,MSSQL,Windows,L. Nguyen,Automation,ORION-SERVICES-NODE-12,Orion-Services-CLUSTER
+Nimbus-Edge-Node01-VM0025,App,Oracle,RHEL,A. Lee,Platform,NIMBUS-EDGE-NODE-01,Nimbus-Edge-CLUSTER
+Quasar-Compute-Node02-VM0026,DB,ETL,Elastic,M. Patel,Apps,QUASAR-COMPUTE-NODE-02,Quasar-Compute-CLUSTER
+Solaris-Data-Node03-VM0027,Infra,Kafka,Nginx,S. Chen,Data,SOLARIS-DATA-NODE-03,Solaris-Data-CLUSTER
+Luna-Transit-Node04-VM0028,Integration,WindowsSvc,RabbitMQ,J. Alvarez,Network,LUNA-TRANSIT-NODE-04,Luna-Transit-CLUSTER
+Apex-Gateway-Node05-VM0029,App,LinuxSvc,Postgres,T. Brown,Security,APEX-GATEWAY-NODE-05,Apex-Gateway-CLUSTER
+Vertex-Core-Node06-VM0030,DB,Analytics,MongoDB,K. Singh,Operations,VERTEX-CORE-NODE-06,Vertex-Core-CLUSTER
+Nova-Insights-Node07-VM0031,Infra,API,SAP,R. Watson,Compliance,NOVA-INSIGHTS-NODE-07,Nova-Insights-CLUSTER
+Echo-Relay-Node08-VM0032,Integration,Web,SharePoint,L. Nguyen,Automation,ECHO-RELAY-NODE-08,Echo-Relay-CLUSTER
+Titan-Grid-Node09-VM0033,App,Batch,Kubernetes,A. Lee,Platform,TITAN-GRID-NODE-09,Titan-Grid-CLUSTER
+Pulse-Stream-Node10-VM0034,DB,MSSQL,Windows,M. Patel,Apps,PULSE-STREAM-NODE-10,Pulse-Stream-CLUSTER
+Aurora-Processing-Node11-VM0035,Infra,Oracle,RHEL,S. Chen,Data,AURORA-PROCESSING-NODE-11,Aurora-Processing-CLUSTER
+Cypher-Labs-Node12-VM0036,Integration,ETL,Elastic,J. Alvarez,Network,CYPHER-LABS-NODE-12,Cypher-Labs-CLUSTER
+Quantum-Fabric-Node01-VM0037,App,Kafka,Nginx,T. Brown,Security,QUANTUM-FABRIC-NODE-01,Quantum-Fabric-CLUSTER
+Zenith-Core-Node02-VM0038,DB,WindowsSvc,RabbitMQ,K. Singh,Operations,ZENITH-CORE-NODE-02,Zenith-Core-CLUSTER
+Meteor-Ridge-Node03-VM0039,Infra,LinuxSvc,Postgres,R. Watson,Compliance,METEOR-RIDGE-NODE-03,Meteor-Ridge-CLUSTER
+Nimbus-HQ-Node04-VM0040,Integration,Analytics,MongoDB,L. Nguyen,Automation,NIMBUS-HQ-NODE-04,Nimbus-HQ-CLUSTER
+Atlas-Core-Node05-VM0041,App,API,SAP,A. Lee,Platform,ATLAS-CORE-NODE-05,Atlas-Core-CLUSTER
+Zephyr-Edge-Node06-VM0042,DB,Web,SharePoint,M. Patel,Apps,ZEPHYR-EDGE-NODE-06,Zephyr-Edge-CLUSTER
+Helios-Analytics-Node07-VM0043,Infra,Batch,Kubernetes,S. Chen,Data,HELIOS-ANALYTICS-NODE-07,Helios-Analytics-CLUSTER
+Orion-Services-Node08-VM0044,Integration,MSSQL,Windows,J. Alvarez,Network,ORION-SERVICES-NODE-08,Orion-Services-CLUSTER
+Nimbus-Edge-Node09-VM0045,App,Oracle,RHEL,T. Brown,Security,NIMBUS-EDGE-NODE-09,Nimbus-Edge-CLUSTER
+Quasar-Compute-Node10-VM0046,DB,ETL,Elastic,K. Singh,Operations,QUASAR-COMPUTE-NODE-10,Quasar-Compute-CLUSTER
+Solaris-Data-Node11-VM0047,Infra,Kafka,Nginx,R. Watson,Compliance,SOLARIS-DATA-NODE-11,Solaris-Data-CLUSTER
+Luna-Transit-Node12-VM0048,Integration,WindowsSvc,RabbitMQ,L. Nguyen,Automation,LUNA-TRANSIT-NODE-12,Luna-Transit-CLUSTER
+Apex-Gateway-Node01-VM0049,App,LinuxSvc,Postgres,A. Lee,Platform,APEX-GATEWAY-NODE-01,Apex-Gateway-CLUSTER
+Vertex-Core-Node02-VM0050,DB,Analytics,MongoDB,M. Patel,Apps,VERTEX-CORE-NODE-02,Vertex-Core-CLUSTER
+Nova-Insights-Node03-VM0051,Infra,API,SAP,S. Chen,Data,NOVA-INSIGHTS-NODE-03,Nova-Insights-CLUSTER
+Echo-Relay-Node04-VM0052,Integration,Web,SharePoint,J. Alvarez,Network,ECHO-RELAY-NODE-04,Echo-Relay-CLUSTER
+Titan-Grid-Node05-VM0053,App,Batch,Kubernetes,T. Brown,Security,TITAN-GRID-NODE-05,Titan-Grid-CLUSTER
+Pulse-Stream-Node06-VM0054,DB,MSSQL,Windows,K. Singh,Operations,PULSE-STREAM-NODE-06,Pulse-Stream-CLUSTER
+Aurora-Processing-Node07-VM0055,Infra,Oracle,RHEL,R. Watson,Compliance,AURORA-PROCESSING-NODE-07,Aurora-Processing-CLUSTER
+Cypher-Labs-Node08-VM0056,Integration,ETL,Elastic,L. Nguyen,Automation,CYPHER-LABS-NODE-08,Cypher-Labs-CLUSTER
+Quantum-Fabric-Node09-VM0057,App,Kafka,Nginx,A. Lee,Platform,QUANTUM-FABRIC-NODE-09,Quantum-Fabric-CLUSTER
+Zenith-Core-Node10-VM0058,DB,WindowsSvc,RabbitMQ,M. Patel,Apps,ZENITH-CORE-NODE-10,Zenith-Core-CLUSTER
+Meteor-Ridge-Node11-VM0059,Infra,LinuxSvc,Postgres,S. Chen,Data,METEOR-RIDGE-NODE-11,Meteor-Ridge-CLUSTER
+Nimbus-HQ-Node12-VM0060,Integration,Analytics,MongoDB,J. Alvarez,Network,NIMBUS-HQ-NODE-12,Nimbus-HQ-CLUSTER
+Atlas-Core-Node01-VM0061,App,API,SAP,T. Brown,Security,ATLAS-CORE-NODE-01,Atlas-Core-CLUSTER
+Zephyr-Edge-Node02-VM0062,DB,Web,SharePoint,K. Singh,Operations,ZEPHYR-EDGE-NODE-02,Zephyr-Edge-CLUSTER
+Helios-Analytics-Node03-VM0063,Infra,Batch,Kubernetes,R. Watson,Compliance,HELIOS-ANALYTICS-NODE-03,Helios-Analytics-CLUSTER
+Orion-Services-Node04-VM0064,Integration,MSSQL,Windows,L. Nguyen,Automation,ORION-SERVICES-NODE-04,Orion-Services-CLUSTER
+Nimbus-Edge-Node05-VM0065,App,Oracle,RHEL,A. Lee,Platform,NIMBUS-EDGE-NODE-05,Nimbus-Edge-CLUSTER
+Quasar-Compute-Node06-VM0066,DB,ETL,Elastic,M. Patel,Apps,QUASAR-COMPUTE-NODE-06,Quasar-Compute-CLUSTER
+Solaris-Data-Node07-VM0067,Infra,Kafka,Nginx,S. Chen,Data,SOLARIS-DATA-NODE-07,Solaris-Data-CLUSTER
+Luna-Transit-Node08-VM0068,Integration,WindowsSvc,RabbitMQ,J. Alvarez,Network,LUNA-TRANSIT-NODE-08,Luna-Transit-CLUSTER
+Apex-Gateway-Node09-VM0069,App,LinuxSvc,Postgres,T. Brown,Security,APEX-GATEWAY-NODE-09,Apex-Gateway-CLUSTER
+Vertex-Core-Node10-VM0070,DB,Analytics,MongoDB,K. Singh,Operations,VERTEX-CORE-NODE-10,Vertex-Core-CLUSTER
+Nova-Insights-Node11-VM0071,Infra,API,SAP,R. Watson,Compliance,NOVA-INSIGHTS-NODE-11,Nova-Insights-CLUSTER
+Echo-Relay-Node12-VM0072,Integration,Web,SharePoint,L. Nguyen,Automation,ECHO-RELAY-NODE-12,Echo-Relay-CLUSTER
+Titan-Grid-Node01-VM0073,App,Batch,Kubernetes,A. Lee,Platform,TITAN-GRID-NODE-01,Titan-Grid-CLUSTER
+Pulse-Stream-Node02-VM0074,DB,MSSQL,Windows,M. Patel,Apps,PULSE-STREAM-NODE-02,Pulse-Stream-CLUSTER
+Aurora-Processing-Node03-VM0075,Infra,Oracle,RHEL,S. Chen,Data,AURORA-PROCESSING-NODE-03,Aurora-Processing-CLUSTER
+Cypher-Labs-Node04-VM0076,Integration,ETL,Elastic,J. Alvarez,Network,CYPHER-LABS-NODE-04,Cypher-Labs-CLUSTER
+Quantum-Fabric-Node05-VM0077,App,Kafka,Nginx,T. Brown,Security,QUANTUM-FABRIC-NODE-05,Quantum-Fabric-CLUSTER
+Zenith-Core-Node06-VM0078,DB,WindowsSvc,RabbitMQ,K. Singh,Operations,ZENITH-CORE-NODE-06,Zenith-Core-CLUSTER
+Meteor-Ridge-Node07-VM0079,Infra,LinuxSvc,Postgres,R. Watson,Compliance,METEOR-RIDGE-NODE-07,Meteor-Ridge-CLUSTER
+Nimbus-HQ-Node08-VM0080,Integration,Analytics,MongoDB,L. Nguyen,Automation,NIMBUS-HQ-NODE-08,Nimbus-HQ-CLUSTER
+Atlas-Core-Node09-VM0081,App,API,SAP,A. Lee,Platform,ATLAS-CORE-NODE-09,Atlas-Core-CLUSTER
+Zephyr-Edge-Node10-VM0082,DB,Web,SharePoint,M. Patel,Apps,ZEPHYR-EDGE-NODE-10,Zephyr-Edge-CLUSTER
+Helios-Analytics-Node11-VM0083,Infra,Batch,Kubernetes,S. Chen,Data,HELIOS-ANALYTICS-NODE-11,Helios-Analytics-CLUSTER
+Orion-Services-Node12-VM0084,Integration,MSSQL,Windows,J. Alvarez,Network,ORION-SERVICES-NODE-12,Orion-Services-CLUSTER
+Nimbus-Edge-Node01-VM0085,App,Oracle,RHEL,T. Brown,Security,NIMBUS-EDGE-NODE-01,Nimbus-Edge-CLUSTER
+Quasar-Compute-Node02-VM0086,DB,ETL,Elastic,K. Singh,Operations,QUASAR-COMPUTE-NODE-02,Quasar-Compute-CLUSTER
+Solaris-Data-Node03-VM0087,Infra,Kafka,Nginx,R. Watson,Compliance,SOLARIS-DATA-NODE-03,Solaris-Data-CLUSTER
+Luna-Transit-Node04-VM0088,Integration,WindowsSvc,RabbitMQ,L. Nguyen,Automation,LUNA-TRANSIT-NODE-04,Luna-Transit-CLUSTER
+Apex-Gateway-Node05-VM0089,App,LinuxSvc,Postgres,A. Lee,Platform,APEX-GATEWAY-NODE-05,Apex-Gateway-CLUSTER
+Vertex-Core-Node06-VM0090,DB,Analytics,MongoDB,M. Patel,Apps,VERTEX-CORE-NODE-06,Vertex-Core-CLUSTER
+Nova-Insights-Node07-VM0091,Infra,API,SAP,S. Chen,Data,NOVA-INSIGHTS-NODE-07,Nova-Insights-CLUSTER
+Echo-Relay-Node08-VM0092,Integration,Web,SharePoint,J. Alvarez,Network,ECHO-RELAY-NODE-08,Echo-Relay-CLUSTER
+Titan-Grid-Node09-VM0093,App,Batch,Kubernetes,T. Brown,Security,TITAN-GRID-NODE-09,Titan-Grid-CLUSTER
+Pulse-Stream-Node10-VM0094,DB,MSSQL,Windows,K. Singh,Operations,PULSE-STREAM-NODE-10,Pulse-Stream-CLUSTER
+Aurora-Processing-Node11-VM0095,Infra,Oracle,RHEL,R. Watson,Compliance,AURORA-PROCESSING-NODE-11,Aurora-Processing-CLUSTER
+Cypher-Labs-Node12-VM0096,Integration,ETL,Elastic,L. Nguyen,Automation,CYPHER-LABS-NODE-12,Cypher-Labs-CLUSTER
+Quantum-Fabric-Node01-VM0097,App,Kafka,Nginx,A. Lee,Platform,QUANTUM-FABRIC-NODE-01,Quantum-Fabric-CLUSTER
+Zenith-Core-Node02-VM0098,DB,WindowsSvc,RabbitMQ,M. Patel,Apps,ZENITH-CORE-NODE-02,Zenith-Core-CLUSTER
+Meteor-Ridge-Node03-VM0099,Infra,LinuxSvc,Postgres,S. Chen,Data,METEOR-RIDGE-NODE-03,Meteor-Ridge-CLUSTER
+Nimbus-HQ-Node04-VM0100,Integration,Analytics,MongoDB,J. Alvarez,Network,NIMBUS-HQ-NODE-04,Nimbus-HQ-CLUSTER
+
+  </script>
+
+  <script>
+    // -----------------------------
+    // Data Types & Sample Data
+    // -----------------------------
+    const SAMPLE_DATA = [
+      {
+        name: "Kamloops",
+        description: "Primary interior DC focused on core infrastructure and production workloads.",
+        clusters: [
+          {
+            name: "KAM-PRD-01",
+            env: "prd",
+            description: "Tier-1 business systems (DB, app, integration).",
+            drCluster: "CGY-PRD-01",
+            cpuUsagePct: 62,
+            cpuCapacityGHz: 512,
+            memUsagePctHA: 68,
+            memCapacityTB: 12,
+            storageCapacityTB: 420,
+            hddCount: 120,
+            ssdCount: 48,
+            hostCount: 8,
+            vmCount: 320,
+            hasFileServer: true,
+            hasObjectsServer: true,
+            nodes: [
+              { name: "KAM-PRD-01-N01", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:66, cpuCapacityGHz:64, memUsagePctHA:71, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:44 },
+              { name: "KAM-PRD-01-N02", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:61, cpuCapacityGHz:64, memUsagePctHA:68, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:43 },
+              { name: "KAM-PRD-01-N03", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:58, cpuCapacityGHz:64, memUsagePctHA:65, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:40 },
+              { name: "KAM-PRD-01-N04", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:67, cpuCapacityGHz:64, memUsagePctHA:72, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:42 },
+              { name: "KAM-PRD-01-N05", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:62, cpuCapacityGHz:64, memUsagePctHA:69, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:38 },
+              { name: "KAM-PRD-01-N06", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:59, cpuCapacityGHz:64, memUsagePctHA:66, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:37 },
+              { name: "KAM-PRD-01-N07", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:63, cpuCapacityGHz:64, memUsagePctHA:70, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:38 },
+              { name: "KAM-PRD-01-N08", hypervisor: "AHV", model:"NX-8170-G7", cpuUsagePct:64, cpuCapacityGHz:64, memUsagePctHA:70, memCapacityTB:1.5, storageCapacityTB:56, hddCount:12, ssdCount:6, vmCount:38 },
+            ]
+          },
+          {
+            name: "KAM-DEV-01",
+            env: "dev",
+            description: "General development and sandbox workloads.",
+            drCluster: "CGY-DEV-01",
+            cpuUsagePct: 38,
+            cpuCapacityGHz: 256,
+            memUsagePctHA: 41,
+            memCapacityTB: 8,
+            storageCapacityTB: 180,
+            hddCount: 48,
+            ssdCount: 16,
+            hostCount: 4,
+            vmCount: 120,
+            hasFileServer: true,
+            hasObjectsServer: false,
+            nodes: [
+              { name: "KAM-DEV-01-N01", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:36, cpuCapacityGHz:64, memUsagePctHA:40, memCapacityTB:2, storageCapacityTB:45, hddCount:10, ssdCount:4, vmCount:32 },
+              { name: "KAM-DEV-01-N02", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:39, cpuCapacityGHz:64, memUsagePctHA:42, memCapacityTB:2, storageCapacityTB:45, hddCount:10, ssdCount:4, vmCount:29 },
+              { name: "KAM-DEV-01-N03", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:37, cpuCapacityGHz:64, memUsagePctHA:41, memCapacityTB:2, storageCapacityTB:45, hddCount:10, ssdCount:4, vmCount:30 },
+              { name: "KAM-DEV-01-N04", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:40, cpuCapacityGHz:64, memUsagePctHA:42, memCapacityTB:2, storageCapacityTB:45, hddCount:10, ssdCount:4, vmCount:29 },
+            ]
+          },
+          {
+            name: "KAM-QA-01",
+            env: "qa",
+            description: "Quality assurance workloads mirroring production footprints.",
+            drCluster: "CGY-QA-01",
+            cpuUsagePct: 44,
+            cpuCapacityGHz: 320,
+            memUsagePctHA: 48,
+            memCapacityTB: 9,
+            storageCapacityTB: 220,
+            hddCount: 64,
+            ssdCount: 20,
+            hostCount: 5,
+            vmCount: 160,
+            hasFileServer: true,
+            hasObjectsServer: true,
+            nodes: [
+              { name: "KAM-QA-01-N01", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:43, cpuCapacityGHz:64, memUsagePctHA:46, memCapacityTB:1.8, storageCapacityTB:44, hddCount:10, ssdCount:4, vmCount:31 },
+              { name: "KAM-QA-01-N02", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:45, cpuCapacityGHz:64, memUsagePctHA:47, memCapacityTB:1.8, storageCapacityTB:44, hddCount:10, ssdCount:4, vmCount:33 },
+              { name: "KAM-QA-01-N03", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:42, cpuCapacityGHz:64, memUsagePctHA:45, memCapacityTB:1.8, storageCapacityTB:44, hddCount:10, ssdCount:4, vmCount:32 },
+              { name: "KAM-QA-01-N04", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:44, cpuCapacityGHz:64, memUsagePctHA:48, memCapacityTB:1.8, storageCapacityTB:44, hddCount:10, ssdCount:4, vmCount:32 },
+              { name: "KAM-QA-01-N05", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:46, cpuCapacityGHz:64, memUsagePctHA:49, memCapacityTB:1.8, storageCapacityTB:44, hddCount:10, ssdCount:4, vmCount:32 },
+            ]
+          }
+        ]
+      },
+      {
+        name: "Calgary",
+        description: "Secondary prairie DC; key role in DR and pre-production validation.",
+        clusters: [
+          {
+            name: "CGY-PRD-01",
+            env: "prd",
+            description: "Production DR and analytics workloads.",
+            drCluster: "KAM-PRD-01",
+            cpuUsagePct: 55,
+            cpuCapacityGHz: 448,
+            memUsagePctHA: 60,
+            memCapacityTB: 10,
+            storageCapacityTB: 360,
+            hddCount: 100,
+            ssdCount: 40,
+            hostCount: 7,
+            vmCount: 280,
+            hasFileServer: true,
+            hasObjectsServer: true,
+            nodes: [
+              { name: "CGY-PRD-01-N01", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:53, cpuCapacityGHz:64, memUsagePctHA:59, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:39 },
+              { name: "CGY-PRD-01-N02", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:57, cpuCapacityGHz:64, memUsagePctHA:61, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:41 },
+              { name: "CGY-PRD-01-N03", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:56, cpuCapacityGHz:64, memUsagePctHA:60, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:40 },
+              { name: "CGY-PRD-01-N04", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:54, cpuCapacityGHz:64, memUsagePctHA:61, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:40 },
+              { name: "CGY-PRD-01-N05", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:55, cpuCapacityGHz:64, memUsagePctHA:60, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:40 },
+              { name: "CGY-PRD-01-N06", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:56, cpuCapacityGHz:64, memUsagePctHA:60, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:40 },
+              { name: "CGY-PRD-01-N07", hypervisor: "ESXi", model:"NX-8170-G7", cpuUsagePct:54, cpuCapacityGHz:64, memUsagePctHA:59, memCapacityTB:1.25, storageCapacityTB:52, hddCount:12, ssdCount:6, vmCount:40 },
+            ]
+          },
+          {
+            name: "CGY-PRE-01",
+            env: "pre",
+            description: "Pre-production staging for release validation.",
+            drCluster: "KAM-PRE-01",
+            cpuUsagePct: 42,
+            cpuCapacityGHz: 256,
+            memUsagePctHA: 45,
+            memCapacityTB: 6,
+            storageCapacityTB: 160,
+            hddCount: 40,
+            ssdCount: 16,
+            hostCount: 4,
+            vmCount: 150,
+            hasFileServer: false,
+            hasObjectsServer: true,
+            nodes: [
+              { name: "CGY-PRE-01-N01", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:44, cpuCapacityGHz:64, memUsagePctHA:47, memCapacityTB:1.5, storageCapacityTB:40, hddCount:8, ssdCount:4, vmCount:37 },
+              { name: "CGY-PRE-01-N02", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:41, cpuCapacityGHz:64, memUsagePctHA:44, memCapacityTB:1.5, storageCapacityTB:40, hddCount:8, ssdCount:4, vmCount:38 },
+              { name: "CGY-PRE-01-N03", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:40, cpuCapacityGHz:64, memUsagePctHA:43, memCapacityTB:1.5, storageCapacityTB:40, hddCount:8, ssdCount:4, vmCount:38 },
+              { name: "CGY-PRE-01-N04", hypervisor: "AHV", model:"NX-5155-G7", cpuUsagePct:41, cpuCapacityGHz:64, memUsagePctHA:45, memCapacityTB:1.5, storageCapacityTB:40, hddCount:8, ssdCount:4, vmCount:37 },
+            ]
+          }
+        ]
+      },
+      {
+        name: "North Vancouver",
+        description: "Coastal DC for edge services, integrations, and files/object services.",
+        clusters: [
+          {
+            name: "NV-EDGE-01",
+            env: "prd",
+            description: "Edge services and integrations.",
+            drCluster: "VIC-EDGE-01",
+            cpuUsagePct: 48,
+            cpuCapacityGHz: 192,
+            memUsagePctHA: 52,
+            memCapacityTB: 5,
+            storageCapacityTB: 140,
+            hddCount: 36,
+            ssdCount: 12,
+            hostCount: 3,
+            vmCount: 90,
+            hasFileServer: true,
+            hasObjectsServer: true,
+            nodes: [
+              { name: "NV-EDGE-01-N01", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:46, cpuCapacityGHz:64, memUsagePctHA:50, memCapacityTB:1.6, storageCapacityTB:45, hddCount:8, ssdCount:4, vmCount:31 },
+              { name: "NV-EDGE-01-N02", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:49, cpuCapacityGHz:64, memUsagePctHA:53, memCapacityTB:1.6, storageCapacityTB:45, hddCount:8, ssdCount:4, vmCount:29 },
+              { name: "NV-EDGE-01-N03", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:48, cpuCapacityGHz:64, memUsagePctHA:53, memCapacityTB:1.6, storageCapacityTB:50, hddCount:10, ssdCount:4, vmCount:30 },
+            ]
+          }
+        ]
+      },
+      {
+        name: "Victoria",
+        description: "Island DC for regional workloads and DR pairing.",
+        clusters: [
+          {
+            name: "VIC-EDGE-01",
+            env: "pre",
+            description: "DR for North Van edge; mixed pre-prod workloads.",
+            drCluster: "NV-EDGE-01",
+            cpuUsagePct: 34,
+            cpuCapacityGHz: 160,
+            memUsagePctHA: 39,
+            memCapacityTB: 4,
+            storageCapacityTB: 120,
+            hddCount: 28,
+            ssdCount: 10,
+            hostCount: 3,
+            vmCount: 70,
+            hasFileServer: false,
+            hasObjectsServer: true,
+            nodes: [
+              { name: "VIC-EDGE-01-N01", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:33, cpuCapacityGHz:64, memUsagePctHA:38, memCapacityTB:1.3, storageCapacityTB:40, hddCount:8, ssdCount:3, vmCount:23 },
+              { name: "VIC-EDGE-01-N02", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:35, cpuCapacityGHz:48, memUsagePctHA:39, memCapacityTB:1.3, storageCapacityTB:40, hddCount:8, ssdCount:3, vmCount:24 },
+              { name: "VIC-EDGE-01-N03", hypervisor: "AHV", model:"NX-3155-G7", cpuUsagePct:34, cpuCapacityGHz:48, memUsagePctHA:40, memCapacityTB:1.4, storageCapacityTB:40, hddCount:8, ssdCount:4, vmCount:23 },
+            ]
+          }
+        ]
+      }
+    ];
+
+    // -----------------------------
+    // Utilities
+    // -----------------------------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    function pctClass(p) {
+      if (p < 70) return "";
+      if (p < 85) return "warn";
+      return "danger";
+    }
+
+    function parseVmCsv(text) {
+      const lines = text.trim().split(/\r?\n/).filter(line=>line.trim().length);
+      if (!lines.length) return [];
+      const headers = lines.shift().split(',').map(h=>h.trim());
+      const indexFor = key => headers.indexOf(key);
+      const idx = {
+        name: indexFor('name'),
+        majorType: indexFor('majorType'),
+        minorType: indexFor('minorType'),
+        platform: indexFor('platform'),
+        lead: indexFor('lead'),
+        team: indexFor('team'),
+        host: indexFor('host'),
+        cluster: indexFor('cluster'),
+      };
+      return lines.map(line=>{
+        const values = line.split(',').map(v=>v.trim());
+        return {
+          name: values[idx.name] || '',
+          majorType: values[idx.majorType] || '',
+          minorType: values[idx.minorType] || '',
+          platform: values[idx.platform] || '',
+          lead: values[idx.lead] || '',
+          team: values[idx.team] || '',
+          host: values[idx.host] || '',
+          cluster: values[idx.cluster] || '',
+        };
+      });
+    }
+
+    function loadVMs() {
+      const el = $('#vm-data');
+      if (!el) return [];
+      return parseVmCsv(el.textContent || el.innerText || '');
+    }
+
+    // -----------------------------
+    // App State
+    // -----------------------------
+    const state = {
+      activePage: 'vms',
+      vms: [],
+      filters: { name:'', majorType:'', minorType:'', platform:'', lead:'', team:'', host:'', cluster:'' },
+      sortBy: 'name', sortDir: 'asc',
+      page: 1, pageSize: 20,
+      openCluster: null,
+    };
+
+    // -----------------------------
+    // Initialization
+    // -----------------------------
+    function init() {
+      state.vms = loadVMs();
+      populateFilters();
+      bindEvents();
+      renderVMTable();
+      renderLocations();
+    }
+
+    function populateFilters() {
+      $('#total').textContent = state.vms.length;
+    }
+
+    function bindEvents() {
+      // Tabs
+      $$('.tab').forEach(btn=>btn.addEventListener('click', ()=>{
+        $$('.tab').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        state.activePage = btn.dataset.page;
+        $('#page-vms').classList.toggle('hidden', state.activePage !== 'vms');
+        $('#page-locations').classList.toggle('hidden', state.activePage !== 'locations');
+      }));
+
+      // Filters
+      $('#f-name').addEventListener('input', e=>{ state.filters.name = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-major').addEventListener('input', e=>{ state.filters.majorType = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-minor').addEventListener('input', e=>{ state.filters.minorType = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-platform').addEventListener('input', e=>{ state.filters.platform = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-lead').addEventListener('input', e=>{ state.filters.lead = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-team').addEventListener('input', e=>{ state.filters.team = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-host').addEventListener('input', e=>{ state.filters.host = e.target.value; state.page=1; renderVMTable(); });
+      $('#f-cluster').addEventListener('input', e=>{ state.filters.cluster = e.target.value; state.page=1; renderVMTable(); });
+      $('#clearFilters').addEventListener('click', ()=>{
+        state.filters = { name:'', majorType:'', minorType:'', platform:'', lead:'', team:'', host:'', cluster:'' };
+        $('#f-name').value='';
+        ['f-major','f-minor','f-platform','f-lead','f-team','f-host','f-cluster'].forEach(id=>$('#'+id).value='');
+        state.page = 1;
+        renderVMTable();
+      });
+
+      // Sorting
+      $$('#vm-table thead th.sortable').forEach(th=>{
+        th.addEventListener('click', ()=>{
+          const k = th.dataset.key;
+          if (state.sortBy === k) state.sortDir = (state.sortDir==='asc'?'desc':'asc');
+          else { state.sortBy = k; state.sortDir = 'asc'; }
+          renderVMTable();
+        });
+      });
+
+      // Pagination
+      $('#prev').addEventListener('click', ()=>{ if (state.page>1){ state.page--; renderVMTable(); } });
+      $('#next').addEventListener('click', ()=>{ const totalPages = Math.max(1, Math.ceil(filterVMs().length/state.pageSize)); if (state.page<totalPages){ state.page++; renderVMTable(); } });
+
+      // Modal close
+      $$('#modal [data-close]').forEach(el=>el.addEventListener('click', closeModal));
+      document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') closeModal(); });
+    }
+
+    // -----------------------------
+    // VMs Page rendering
+    // -----------------------------
+    function filterVMs() {
+      const f = state.filters;
+      const match = (src, q) => !q || String(src).toLowerCase().includes(String(q).toLowerCase());
+      return state.vms
+        .filter(v=>match(v.name, f.name))
+        .filter(v=>match(v.majorType, f.majorType))
+        .filter(v=>match(v.minorType, f.minorType))
+        .filter(v=>match(v.platform, f.platform))
+        .filter(v=>match(v.lead, f.lead))
+        .filter(v=>match(v.team, f.team))
+        .filter(v=>match(v.host, f.host))
+        .filter(v=>match(v.cluster, f.cluster))
+        .sort((a,b)=>{
+          const av = String(a[state.sortBy]).toLowerCase();
+          const bv = String(b[state.sortBy]).toLowerCase();
+          if (av<bv) return state.sortDir==='asc'? -1:1;
+          if (av>bv) return state.sortDir==='asc'? 1:-1;
+          return 0;
+        });
+    }
+
+    function renderVMTable() {
+      const rows = filterVMs();
+      $('#count').textContent = rows.length;
+      const totalPages = Math.max(1, Math.ceil(rows.length/state.pageSize));
+      if (state.page>totalPages) state.page = totalPages;
+      $('#pageTotal').textContent = totalPages;
+      $('#pageNum').textContent = state.page;
+      $('#prev').disabled = state.page===1;
+      $('#next').disabled = state.page===totalPages;
+
+      const pageItems = rows.slice((state.page-1)*state.pageSize, state.page*state.pageSize);
+      const tbody = $('#vm-table tbody');
+      tbody.innerHTML = pageItems.map(v=>`
+        <tr>
+          <td class="name">${escapeHtml(v.name)}</td>
+          <td>${escapeHtml(v.majorType)}</td>
+          <td>${escapeHtml(v.minorType)}</td>
+          <td>${escapeHtml(v.platform)}</td>
+          <td>${escapeHtml(v.lead)}</td>
+          <td>${escapeHtml(v.team)}</td>
+          <td>${escapeHtml(v.host)}</td>
+          <td>${escapeHtml(v.cluster)}</td>
+        </tr>`).join('')
+        || `<tr><td colspan="8" class="muted" style="text-align:center; padding:24px;">No results. Try adjusting filters.</td></tr>`;
+
+      // Update sort arrows
+      $$('#vm-table thead th .arrow').forEach(a=>a.textContent='');
+      const activeTh = $(`#vm-table thead th[data-key="${state.sortBy}"] .arrow`);
+      if (activeTh) activeTh.textContent = state.sortDir==='asc' ? '▲' : '▼';
+    }
+
+    // -----------------------------
+    // Locations Page rendering
+    // -----------------------------
+    function renderLocations() {
+      const root = $('#locations');
+      root.innerHTML = '';
+      for (const loc of SAMPLE_DATA) {
+        const section = document.createElement('div');
+        section.className = 'section';
+        section.innerHTML = `
+          <div class="row" style="align-items:baseline; margin-bottom:8px;">
+            <div>
+              <h3 class="title" style="margin-bottom:4px;">${escapeHtml(loc.name)}</h3>
+              <div class="muted">${escapeHtml(loc.description)}</div>
+            </div>
+          </div>
+          <div class="grid"></div>
+        `;
+        const grid = $('.grid', section);
+        for (const cl of loc.clusters) {
+          const card = document.createElement('button');
+          card.className = 'cluster-card';
+          card.innerHTML = `
+            <div class="row">
+              <div>
+                <div class="name">${escapeHtml(cl.name)}</div>
+              </div>
+              <div class="badges">
+                <span class="badge">DR: ${escapeHtml(cl.drCluster)}</span>
+              </div>
+            </div>
+            <div class="desc">${escapeHtml(cl.description)}</div>
+            <div class="metrics">
+              <div class="metric">
+                <div class="label">CPU Usage</div>
+                <div class="value">${cl.cpuUsagePct}%</div>
+                <div class="progress ${pctClass(cl.cpuUsagePct)}"><div style="width:${cl.cpuUsagePct}%"></div></div>
+                <div class="muted" style="margin-top:4px;">Capacity: ${cl.cpuCapacityGHz} GHz</div>
+              </div>
+              <div class="metric">
+                <div class="label">Memory Usage (inc. HA)</div>
+                <div class="value">${cl.memUsagePctHA}%</div>
+                <div class="progress ${pctClass(cl.memUsagePctHA)}"><div style="width:${cl.memUsagePctHA}%"></div></div>
+                <div class="muted" style="margin-top:4px;">Capacity: ${cl.memCapacityTB} TB</div>
+              </div>
+              <div class="metric">
+                <div class="label">Physical Storage</div>
+                <div class="value">${cl.storageCapacityTB} TB</div>
+                <div class="muted">HDD: ${cl.hddCount} · SSD: ${cl.ssdCount}</div>
+              </div>
+              <div class="metric">
+                <div class="label">Entities</div>
+                <div class="muted">Hosts: ${cl.hostCount} · VMs: ${cl.vmCount}</div>
+              </div>
+            </div>
+          `;
+          card.addEventListener('click', ()=>openClusterModal(loc.name, cl));
+          grid.appendChild(card);
+        }
+        root.appendChild(section);
+      }
+    }
+
+    // -----------------------------
+    // Modal (Cluster → Nodes)
+    // -----------------------------
+    function openClusterModal(locationName, cluster) {
+      state.openCluster = { locationName, cluster };
+      $('#modal-location').textContent = locationName;
+      $('#modal-title').textContent = cluster.name;
+      $('#modal-desc').textContent = cluster.description;
+
+      // Top metrics
+      const m = cluster;
+      $('#modal-metrics').innerHTML = `
+        <div class="metric">
+          <div class="label">CPU Usage</div>
+          <div class="value">${m.cpuUsagePct}%</div>
+          <div class="progress ${pctClass(m.cpuUsagePct)}"><div style="width:${m.cpuUsagePct}%"></div></div>
+          <div class="muted" style="margin-top:4px;">Capacity: ${m.cpuCapacityGHz} GHz</div>
+        </div>
+        <div class="metric">
+          <div class="label">Memory Usage (inc. HA)</div>
+          <div class="value">${m.memUsagePctHA}%</div>
+          <div class="progress ${pctClass(m.memUsagePctHA)}"><div style="width:${m.memUsagePctHA}%"></div></div>
+          <div class="muted" style="margin-top:4px;">Capacity: ${m.memCapacityTB} TB</div>
+        </div>
+        <div class="metric">
+          <div class="label">Physical Storage</div>
+          <div class="value">${m.storageCapacityTB} TB</div>
+          <div class="muted">HDD: ${m.hddCount} · SSD: ${m.ssdCount}</div>
+        </div>
+        <div class="metric">
+          <div class="label">Entities</div>
+          <div class="muted">Hosts: ${m.hostCount} · VMs: ${m.vmCount}</div>
+        </div>`;
+
+      // Nodes table
+      const tbody = $('#nodes-body');
+      $('#node-count').textContent = `${cluster.nodes.length} total`;
+      tbody.innerHTML = cluster.nodes.map(n=>`
+        <tr>
+          <td class="name">${escapeHtml(n.name)}</td>
+          <td>${escapeHtml(n.hypervisor)}</td>
+          <td>${escapeHtml(n.model)}</td>
+          <td>
+            <div class="row" style="gap:8px;">
+              <div class="progress ${pctClass(n.cpuUsagePct)}" style="flex:1"><div style="width:${n.cpuUsagePct}%"></div></div>
+              <span class="muted" style="width:36px; text-align:right;">${n.cpuUsagePct}%</span>
+            </div>
+          </td>
+          <td>${n.cpuCapacityGHz} GHz</td>
+          <td>
+            <div class="row" style="gap:8px;">
+              <div class="progress ${pctClass(n.memUsagePctHA)}" style="flex:1"><div style="width:${n.memUsagePctHA}%"></div></div>
+              <span class="muted" style="width:36px; text-align:right;">${n.memUsagePctHA}%</span>
+            </div>
+          </td>
+          <td>${n.memCapacityTB} TB</td>
+          <td>${n.storageCapacityTB}</td>
+          <td>${n.hddCount}</td>
+          <td>${n.ssdCount}</td>
+          <td>${n.vmCount}</td>
+        </tr>
+      `).join('');
+
+      // Show modal
+      $('#modal').classList.add('active');
+      $('#modal').setAttribute('aria-hidden','false');
+    }
+
+    function closeModal(){
+      $('#modal').classList.remove('active');
+      $('#modal').setAttribute('aria-hidden','true');
+      state.openCluster = null;
+    }
+
+    // Escape HTML helper
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+    }
+
+    // Boot
+    init();
+  </script>
+</body>
+</html>
