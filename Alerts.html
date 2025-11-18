@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nutanix Alerts Dashboard</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #0a0a0a;
+      --muted: #6b7280;
+      --muted-600: #4b5563;
+      --muted-700: #374151;
+      --border: #e5e7eb;
+      --alt: #f5f5f5;
+      --accent: #0a0a0a;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --shadow: 0 1px 2px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.06);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .header { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px); background: rgba(255,255,255,0.9); border-bottom: 1px solid var(--border); }
+    .header-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand .logo {
+      width:32px;
+      height:32px;
+      border-radius: 12px;
+      background: url('logo.png') center/contain no-repeat;
+    }
+    .brand h1 { font-size: 18px; margin:0; font-weight: 600; letter-spacing: -0.01em; }
+
+    h2.title { font-size: 20px; margin: 0 0 12px; font-weight: 600; letter-spacing: -0.01em; }
+
+    .filters { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 900px) { .filters { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 560px) { .filters { grid-template-columns: 1fr; } }
+    .field label { display:block; font-size:11px; color: var(--muted); margin-bottom:6px; text-transform: uppercase; letter-spacing: .05em; }
+    .input { width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 12px; padding: 0 10px; background: #fff; outline: none; }
+    .input:focus { box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    .bar { display:flex; align-items:center; gap:10px; margin-top: 10px; }
+    .button { height: 36px; padding: 0 12px; border:1px solid var(--border); border-radius: 12px; background:#fff; cursor:pointer; }
+    .button:disabled { opacity: .5; cursor: default; }
+    .muted { color: var(--muted); font-size: 12px; }
+
+    .card { border:1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #f7f7f7; color: var(--muted-700); }
+    th, td { text-align: left; padding: 10px 12px; }
+    tbody tr { border-top: 1px solid #f1f1f1; }
+    tbody tr:hover { background: #fafafa; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th .arrow { font-size: 10px; margin-left: 4px; }
+
+    .severity-pill { display:inline-flex; align-items:center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+    .severity-critical { background: rgba(239,68,68,0.08); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.3); }
+    .severity-warning { background: rgba(245,158,11,0.08); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
+    .severity-info { background: rgba(14,165,233,0.1); color: #0369a1; border: 1px solid rgba(14,165,233,0.3); }
+
+    .pagination { display:flex; align-items:center; justify-content: space-between; margin-top: 12px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <h1>Nutanix Alerts</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <h2 class="title">Active Alerts</h2>
+      <div class="filters">
+        <div class="field">
+          <label>Severity</label>
+          <input id="f-severity" class="input" type="text" placeholder="Search severity…" />
+        </div>
+        <div class="field">
+          <label>Cluster</label>
+          <input id="f-cluster" class="input" type="text" placeholder="Search cluster…" />
+        </div>
+        <div class="field">
+          <label>Title</label>
+          <input id="f-title" class="input" type="text" placeholder="Search title…" />
+        </div>
+        <div class="field">
+          <label>First Triggered</label>
+          <input id="f-first" class="input" type="text" placeholder="Search first triggered…" />
+        </div>
+        <div class="field">
+          <label>Last Occurrence</label>
+          <input id="f-last" class="input" type="text" placeholder="Search last occurrence…" />
+        </div>
+        <div class="field">
+          <label>Acknowledged By</label>
+          <input id="f-acked" class="input" type="text" placeholder="Search acknowledgements…" />
+        </div>
+      </div>
+      <div class="bar">
+        <div class="muted">Showing <span id="count"></span> of <span id="total"></span> alerts</div>
+        <div style="margin-left:auto"></div>
+        <button id="clearFilters" class="button">Clear all filters</button>
+      </div>
+
+      <div class="card section" style="margin-top:16px;">
+        <table id="alert-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-key="severity">Severity <span class="arrow"></span></th>
+              <th class="sortable" data-key="cluster">Cluster <span class="arrow"></span></th>
+              <th class="sortable" data-key="title">Title <span class="arrow"></span></th>
+              <th class="sortable" data-key="firstTriggered">First Triggered <span class="arrow"></span></th>
+              <th class="sortable" data-key="lastOccurrence">Last Occurrence <span class="arrow"></span></th>
+              <th class="sortable" data-key="acknowledgedBy">Acknowledged By <span class="arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <div>Page <strong id="pageNum">1</strong> of <span id="pageTotal">1</span></div>
+        <div>
+          <button id="prev" class="button">Previous</button>
+          <button id="next" class="button">Next</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="text/csv" id="alert-data">
+severity,cluster,title,first triggered,last occurrence,acknowledged by
+Critical,Cluster Alpha,Node failure detected,2024-07-10 08:32,2024-07-11 05:12,Jane Doe
+Warning,Cluster Beta,Snapshot lagged beyond SLA,2024-07-08 16:10,2024-07-10 02:41,Ops Bot
+Info,Cluster Gamma,Ad-hoc maintenance window,2024-07-09 09:55,2024-07-09 09:55,Unacknowledged
+Critical,Cluster Delta,Power supply redundancy lost,2024-07-11 01:24,2024-07-11 04:15,John Smith
+Warning,Cluster Epsilon,Host memory pressure above 85%,2024-07-07 12:32,2024-07-11 03:05,Sarah Lee
+Info,Cluster Alpha,Disk firmware pending reboot,2024-07-05 07:00,2024-07-10 18:40,N/A
+Critical,Cluster Beta,Data resiliency compromised,2024-07-09 14:11,2024-07-11 06:22,Jane Doe
+Warning,Cluster Zeta,Networking jitter spikes,2024-07-06 20:30,2024-07-09 07:55,Unacknowledged
+Info,Cluster Theta,Software upgrade scheduled,2024-07-10 03:22,2024-07-10 03:22,Release Team
+Critical,Cluster Gamma,Multiple disk failures,2024-07-08 04:54,2024-07-11 05:47,Escalation Team
+  </script>
+
+  <script>
+    const state = {
+      alerts: [],
+      filters: {
+        severity: '', cluster: '', title: '',
+        firstTriggered: '', lastOccurrence: '', acknowledgedBy: ''
+      },
+      sortBy: 'severity',
+      sortDir: 'asc',
+      page: 1,
+      pageSize: 15,
+    };
+
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    function init() {
+      state.alerts = loadAlerts();
+      $('#total').textContent = state.alerts.length;
+      bindEvents();
+      renderTable();
+    }
+
+    function loadAlerts() {
+      const el = $('#alert-data');
+      if (!el) return [];
+      return parseAlertCsv(el.textContent || el.innerText || '');
+    }
+
+    function parseAlertCsv(text) {
+      const lines = text.trim().split(/\r?\n/).filter(line=>line.trim().length);
+      if (!lines.length) return [];
+      const headers = lines.shift().split(',').map(h=>h.trim().toLowerCase());
+      const indexFor = key => headers.indexOf(key);
+      const idx = {
+        severity: indexFor('severity'),
+        cluster: indexFor('cluster'),
+        title: indexFor('title'),
+        firstTriggered: indexFor('first triggered'),
+        lastOccurrence: indexFor('last occurrence'),
+        acknowledgedBy: indexFor('acknowledged by'),
+      };
+      return lines.map(line => {
+        const values = line.split(',').map(v=>v.trim());
+        return {
+          severity: values[idx.severity] || '',
+          cluster: values[idx.cluster] || '',
+          title: values[idx.title] || '',
+          firstTriggered: values[idx.firstTriggered] || '',
+          lastOccurrence: values[idx.lastOccurrence] || '',
+          acknowledgedBy: values[idx.acknowledgedBy] || '',
+        };
+      });
+    }
+
+    function bindEvents() {
+      $('#f-severity').addEventListener('input', e=>{ state.filters.severity = e.target.value; state.page=1; renderTable(); });
+      $('#f-cluster').addEventListener('input', e=>{ state.filters.cluster = e.target.value; state.page=1; renderTable(); });
+      $('#f-title').addEventListener('input', e=>{ state.filters.title = e.target.value; state.page=1; renderTable(); });
+      $('#f-first').addEventListener('input', e=>{ state.filters.firstTriggered = e.target.value; state.page=1; renderTable(); });
+      $('#f-last').addEventListener('input', e=>{ state.filters.lastOccurrence = e.target.value; state.page=1; renderTable(); });
+      $('#f-acked').addEventListener('input', e=>{ state.filters.acknowledgedBy = e.target.value; state.page=1; renderTable(); });
+
+      $('#clearFilters').addEventListener('click', ()=>{
+        state.filters = { severity:'', cluster:'', title:'', firstTriggered:'', lastOccurrence:'', acknowledgedBy:'' };
+        ['f-severity','f-cluster','f-title','f-first','f-last','f-acked'].forEach(id=>$('#'+id).value='');
+        state.page = 1;
+        renderTable();
+      });
+
+      $$('#alert-table thead th.sortable').forEach(th=>{
+        th.addEventListener('click', ()=>{
+          const key = th.dataset.key;
+          if (state.sortBy === key) state.sortDir = state.sortDir==='asc' ? 'desc' : 'asc';
+          else { state.sortBy = key; state.sortDir = 'asc'; }
+          renderTable();
+        });
+      });
+
+      $('#prev').addEventListener('click', ()=>{ if (state.page>1) { state.page--; renderTable(); } });
+      $('#next').addEventListener('click', ()=>{
+        const totalPages = Math.max(1, Math.ceil(filterAlerts().length/state.pageSize));
+        if (state.page < totalPages) { state.page++; renderTable(); }
+      });
+    }
+
+    function filterAlerts() {
+      const match = (src, q) => !q || String(src).toLowerCase().includes(String(q).toLowerCase());
+      const f = state.filters;
+      return state.alerts
+        .filter(a=>match(a.severity, f.severity))
+        .filter(a=>match(a.cluster, f.cluster))
+        .filter(a=>match(a.title, f.title))
+        .filter(a=>match(a.firstTriggered, f.firstTriggered))
+        .filter(a=>match(a.lastOccurrence, f.lastOccurrence))
+        .filter(a=>match(a.acknowledgedBy, f.acknowledgedBy))
+        .sort((a,b)=>{
+          const av = String(a[state.sortBy]).toLowerCase();
+          const bv = String(b[state.sortBy]).toLowerCase();
+          if (av<bv) return state.sortDir==='asc' ? -1 : 1;
+          if (av>bv) return state.sortDir==='asc' ? 1 : -1;
+          return 0;
+        });
+    }
+
+    function severityClass(value) {
+      const normalized = String(value).toLowerCase();
+      if (normalized.startsWith('crit')) return 'severity-critical';
+      if (normalized.startsWith('warn')) return 'severity-warning';
+      return 'severity-info';
+    }
+
+    function renderTable() {
+      const rows = filterAlerts();
+      $('#count').textContent = rows.length;
+      const totalPages = Math.max(1, Math.ceil(rows.length/state.pageSize));
+      if (state.page>totalPages) state.page = totalPages;
+      $('#pageTotal').textContent = totalPages;
+      $('#pageNum').textContent = state.page;
+      $('#prev').disabled = state.page===1;
+      $('#next').disabled = state.page===totalPages;
+
+      const slice = rows.slice((state.page-1)*state.pageSize, state.page*state.pageSize);
+      const tbody = $('#alert-table tbody');
+      tbody.innerHTML = slice.map(a=>`
+        <tr>
+          <td><span class="severity-pill ${severityClass(a.severity)}">${escapeHtml(a.severity)}</span></td>
+          <td>${escapeHtml(a.cluster)}</td>
+          <td>${escapeHtml(a.title)}</td>
+          <td>${escapeHtml(a.firstTriggered)}</td>
+          <td>${escapeHtml(a.lastOccurrence)}</td>
+          <td>${escapeHtml(a.acknowledgedBy || 'Unacknowledged')}</td>
+        </tr>
+      `).join('') || `<tr><td colspan="6" class="muted" style="text-align:center; padding:24px;">No alerts match your filters.</td></tr>`;
+
+      $$('#alert-table thead th .arrow').forEach(a=>a.textContent='');
+      const activeArrow = $(`#alert-table thead th[data-key="${state.sortBy}"] .arrow`);
+      if (activeArrow) activeArrow.textContent = state.sortDir==='asc' ? '▲' : '▼';
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+    }
+
+    init();
+  </script>
+</body>
+</html>
